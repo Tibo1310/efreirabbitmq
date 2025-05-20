@@ -12,6 +12,11 @@ async function sendCalculation() {
             durable: false
         });
 
+        // Créer l'exchange pour les opérations 'all'
+        await channel.assertExchange(config.rabbitmq.exchanges.all_operations, 'fanout', {
+            durable: false
+        });
+
         // Générer des nombres aléatoires
         const n1 = Math.floor(Math.random() * 100);
         const n2 = Math.floor(Math.random() * 100);
@@ -24,11 +29,19 @@ async function sendCalculation() {
             op
         };
 
-        // Envoyer le message
-        channel.sendToQueue(
-            config.rabbitmq.queues.calculations,
-            Buffer.from(JSON.stringify(message))
-        );
+        // Si c'est une opération 'all', utiliser l'exchange, sinon la queue normale
+        if (op === 'all') {
+            channel.publish(
+                config.rabbitmq.exchanges.all_operations,
+                '',
+                Buffer.from(JSON.stringify(message))
+            );
+        } else {
+            channel.sendToQueue(
+                config.rabbitmq.queues.calculations,
+                Buffer.from(JSON.stringify(message))
+            );
+        }
 
         console.log(" [x] Envoyé %s", JSON.stringify(message));
 

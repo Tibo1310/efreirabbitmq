@@ -6,6 +6,9 @@ const config = {
         queues: {
             calculations: process.env.QUEUE_NAME || 'calculations',
             results: process.env.RESULT_QUEUE || 'results'
+        },
+        exchanges: {
+            all_operations: 'all_operations'
         }
     }
 };
