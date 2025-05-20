@@ -1,0 +1,23 @@
+{
+  "name": "efreirabbitmq",
+  "version": "1.0.0",
+  "description": "Projet RabbitMQ Thibault Delattre, Florent Lelion, Florian Germain.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tibo1310/efreirabbitmq.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Tibo1310/efreirabbitmq/issues"
+  },
+  "homepage": "https://github.com/Tibo1310/efreirabbitmq#readme",
+  "dependencies": {
+    "amqplib": "^0.10.8"
+  }
+}
