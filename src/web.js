@@ -9,6 +9,9 @@ const port = process.env.PORT || 3000;
 let connection = null;
 let channel = null;
 
+// Variable pour stocker le dernier résultat
+let lastResult = null;
+
 // Fonction pour initialiser la connexion RabbitMQ
 async function connectQueue() {
     try {
@@ -19,8 +22,20 @@ async function connectQueue() {
             durable: false
         });
 
+        await channel.assertQueue(config.rabbitmq.queues.results, {
+            durable: false
+        });
+
         await channel.assertExchange(config.rabbitmq.exchanges.all_operations, 'fanout', {
             durable: false
+        });
+
+        // Écouter les résultats
+        channel.consume(config.rabbitmq.queues.results, (msg) => {
+            if (msg !== null) {
+                lastResult = JSON.parse(msg.content.toString());
+                channel.ack(msg);
+            }
         });
         
         console.log('Connecté à RabbitMQ');
@@ -93,7 +108,7 @@ app.get('/', (req, res) => {
             <div class="loading" id="loading"></div>
         </form>
         <div class="results">
-            <h2>Résultats</h2>
+            <h2>Interface d'administration (historique):</h2>
             <div id="resultsList"></div>
         </div>
     </div>
@@ -198,6 +213,20 @@ app.get('/', (req, res) => {
             });
         }
 
+        function checkResult() {
+            fetch('/last-result')
+                .then(response => response.json())
+                .then(data => {
+                    if (data) {
+                        addResult(data);
+                    }
+                })
+                .catch(error => console.error('Erreur:', error));
+        }
+
+        // Vérifier les résultats toutes les 1 secondes
+        setInterval(checkResult, 1000);
+
         const form = document.getElementById('calcForm');
         if (form) {
             form.addEventListener('submit', handleSubmit);
@@ -252,6 +281,13 @@ app.post('/calculate', async (req, res) => {
             message: error.message || 'Erreur lors du traitement de la demande'
         });
     }
+});
+
+// Route pour récupérer le dernier résultat
+app.get('/last-result', (req, res) => {
+    res.json(lastResult);
+    // Réinitialiser le résultat après l'avoir envoyé
+    lastResult = null;
 });
 
 process.on('SIGINT', async () => {
