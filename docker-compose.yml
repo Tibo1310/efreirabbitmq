@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Service RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"  # Port AMQP
+      - "15672:15672"  # Port interface de gestion
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  # Producteur
+  producer:
+    build: .
+    environment:
+      - MODE=producer
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  # Consommateur
+  consumer:
+    build: .
+    environment:
+      - MODE=consumer
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  # Workers pour chaque type d'opération
+  worker-add:
+    build: .
+    environment:
+      - MODE=worker
+      - OPERATION=add
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  worker-sub:
+    build: .
+    environment:
+      - MODE=worker
+      - OPERATION=sub
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  worker-mul:
+    build: .
+    environment:
+      - MODE=worker
+      - OPERATION=mul
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  worker-div:
+    build: .
+    environment:
+      - MODE=worker
+      - OPERATION=div
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  # Interface Web (optionnelle)
+  web:
+    build: .
+    environment:
+      - MODE=web
+      - PORT=3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "3000:3000"
+    depends_on:
+      - rabbitmq 
