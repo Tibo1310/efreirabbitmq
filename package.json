@@ -4,7 +4,11 @@
   "description": "Un système de calcul distribué qui traite des opérations mathématiques en utilisant les files d'attente RabbitMQ. Ce projet démontre la mise en œuvre d'une architecture de calcul distribuée où plusieurs workers traitent différents types d'opérations mathématiques.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:web": "nodemon src/web.js",
+    "dev:worker": "nodemon src/worker.js",
+    "dev:consumer": "nodemon src/consumer.js",
+    "dev:producer": "nodemon src/producer.js"
   },
   "keywords": [],
   "author": "",

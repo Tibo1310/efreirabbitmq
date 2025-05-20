@@ -2,6 +2,9 @@ FROM node:18
 
 WORKDIR /usr/src/app
 
+# Installer nodemon globalement
+RUN npm install -g nodemon
+
 # Copier les fichiers de dépendances
 COPY package*.json ./
 

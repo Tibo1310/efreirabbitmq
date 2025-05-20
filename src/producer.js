@@ -15,7 +15,7 @@ async function sendCalculation() {
         // Générer des nombres aléatoires
         const n1 = Math.floor(Math.random() * 100);
         const n2 = Math.floor(Math.random() * 100);
-        const operations = ['add', 'sub', 'mul', 'div'];
+        const operations = ['add', 'sub', 'mul', 'div', 'all'];
         const op = operations[Math.floor(Math.random() * operations.length)];
 
         const message = {

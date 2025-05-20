@@ -11,6 +11,11 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Producteur
   producer:
@@ -18,8 +23,14 @@ services:
     environment:
       - MODE=producer
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:producer
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   # Consommateur
   consumer:
@@ -27,8 +38,32 @@ services:
     environment:
       - MODE=consumer
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:consumer
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+
+  # Interface Web
+  web:
+    build: .
+    environment:
+      - MODE=web
+      - PORT=3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:web
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   # Workers pour chaque type d'opération
   worker-add:
@@ -37,8 +72,14 @@ services:
       - MODE=worker
       - OPERATION=add
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:worker
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   worker-sub:
     build: .
@@ -46,8 +87,14 @@ services:
       - MODE=worker
       - OPERATION=sub
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:worker
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   worker-mul:
     build: .
@@ -55,8 +102,14 @@ services:
       - MODE=worker
       - OPERATION=mul
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:worker
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   worker-div:
     build: .
@@ -64,17 +117,11 @@ services:
       - MODE=worker
       - OPERATION=div
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=development
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+    command: npm run dev:worker
     depends_on:
-      - rabbitmq
-
-  # Interface Web (optionnelle)
-  web:
-    build: .
-    environment:
-      - MODE=web
-      - PORT=3000
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-    ports:
-      - "3000:3000"
-    depends_on:
-      - rabbitmq 
+      rabbitmq:
+        condition: service_healthy 
