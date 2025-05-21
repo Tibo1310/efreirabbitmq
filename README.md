@@ -5,47 +5,6 @@ Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme 
 ## Schéma de notre architecture
 
 ```
-                                                                 ┌──────────────┐
-                                                                 │  Interface   │
-                                                            ┌───▶│     Web     │
-                                                            │    │(localhost:3000)
-                                                            │    └──────────────┘
-                                                            │
-┌──────────────┐     ┌─────────────┐    ┌──────────────┐  │    ┌──────────────┐
-│  Producteur  │────▶│  Exchange   │───▶│   Queue      │──┴───▶│ Consommateur  │
-│ producer.js  │     │ 'operations'│    │  'results'   │       │  consumer.js  │
-└──────────────┘     │  (direct)   │    └──────────────┘       └──────────────┘
-        │            └─────────────┘            ▲
-        │                   │                   │
-        │                   ▼                   │
-        │         ┌─────────────────┐          │
-        │         │ Queues Dédiées  │          │
-        │         │  - add_queue    │──────────┤
-        │         │  - sub_queue    │──────────┤
-        │         │  - mul_queue    │──────────┤
-        │         │  - div_queue    │──────────┘
-        │         └─────────────────┘
-        │
-        │            ┌──────────────┐
-        └──────────▶│   Exchange   │
-                    │'all_operations'│
-                    │   (fanout)   │
-                    └──────┬───────┘
-                           │
-                           ▼
-         ┌────────────────┬┴─────────────┬─────┴────────┐
-         │                │              │              │
-         ▼                ▼              ▼              ▼
-┌──────────────┐  ┌──────────────┐┌──────────────┐┌──────────────┐
-│   Worker     │  │    Worker    ││    Worker    ││    Worker    │
-│     ADD      │  │     SUB     ││     MUL      ││     DIV      │
-│  worker.js   │  │   worker.js  ││   worker.js  ││   worker.js  │
-└──────────────┘  └──────────────┘└──────────────┘└──────────────┘
-
-Légende:
---------
-→ : Flux de messages
-│ : Connexion
 
 Configuration:
 -------------
