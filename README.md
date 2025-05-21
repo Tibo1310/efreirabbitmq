@@ -57,8 +57,14 @@ Configuration:
 
 Queues:
 -------
-1. calculations : Queue principale pour les opérations
-2. results : Queue pour les résultats
+1. Queues permanentes :
+   - calculations : Queue principale pour les opérations
+   - results : Queue pour les résultats
+
+2. Queues temporaires (auto-générées) :
+   - Une queue exclusive par worker (préfixe amq.gen-*)
+   - Créées automatiquement pour l'exchange fanout
+   - Supprimées à la déconnexion des workers
 
 Exchanges:
 ---------
