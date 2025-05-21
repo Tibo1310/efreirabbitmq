@@ -2,6 +2,88 @@
 
 Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme broker de messages. Il permet d'effectuer des opérations mathématiques de manière distribuée avec simulation de temps de calcul.
 
+## Schéma de notre architecture
+
+```
+                                                                 ┌──────────────┐
+                                                                 │  Interface   │
+                                                            ┌───▶│     Web     │
+                                                            │    │(localhost:3000)
+                                                            │    └──────────────┘
+                                                            │
+┌──────────────┐     ┌─────────────┐    ┌──────────────┐  │    ┌──────────────┐
+│  Producteur  │     │   Queue     │    │   Queue      │  │    │ Consommateur  │
+│              │────▶│'calculations'│    │  'results'   │──┴───▶│              │
+│ producer.js  │     │             │    │              │       │  consumer.js  │
+└──────────────┘     └──────┬──────┘    └──────────────┘       └──────────────┘
+                            │                    ▲
+                            │                    │
+                            ▼                    │
+                    ┌──────────────┐            │
+                    │   Exchange   │            │
+                    │     Type     │            │
+                    │   'direct'   │            │
+                    └──────┬───────┘            │
+                           │                    │
+                           │                    │
+         ┌────────────────┬┴─────────────┬─────┴────────┐
+         │                │              │              │
+         ▼                ▼              ▼              ▼
+┌──────────────┐  ┌──────────────┐┌──────────────┐┌──────────────┐
+│   Worker     │  │    Worker    ││    Worker    ││    Worker    │
+│     ADD      │  │     SUB     ││     MUL      ││     DIV      │
+│  worker.js   │  │   worker.js  ││   worker.js  ││   worker.js  │
+└──────┬───────┘  └──────┬───────┘└──────┬───────┘└──────┬───────┘
+       │                 │               │              │
+       │                 │               │              │
+       └─────────┬───────┴───────┬───────┴──────┬──────┘
+                 │               │              │
+                 ▼               ▼              ▼
+         ┌─────────────────────────────────────────────┐
+         │           Exchange 'all_operations'          │
+         │               Type: 'fanout'                │
+         └─────────────────────────────────────────────┘
+
+Légende:
+--------
+→ : Flux de messages
+│ : Connexion
+
+Configuration:
+-------------
+- RabbitMQ Management : http://localhost:15672
+- Interface Web : http://localhost:3000
+- Connexion RabbitMQ : amqp://guest:guest@rabbitmq:5672
+
+Queues:
+-------
+1. calculations : Queue principale pour les opérations
+2. results : Queue pour les résultats
+
+Exchanges:
+---------
+1. Direct (default) : Pour les opérations individuelles
+2. all_operations (fanout) : Pour l'opération "all"
+
+Bindings:
+--------
+- Workers → calculations (routing key = operation type)
+- Workers → all_operations (pas de routing key - fanout)
+- Workers → results (pour les réponses)
+
+Workers:
+-------
+- worker-add : Additions
+- worker-sub : Soustractions
+- worker-mul : Multiplications
+- worker-div : Divisions
+
+Messages:
+--------
+Requête: {"n1": 5, "n2": 3, "op": "add"}
+Réponse: {"n1": 5, "n2": 3, "op": "add", "result": 8}
+```
+
 ## Technologies Utilisées
 
 - **Node.js** : Runtime JavaScript
