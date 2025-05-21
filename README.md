@@ -12,20 +12,27 @@ Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme 
                                                             │    └──────────────┘
                                                             │
 ┌──────────────┐     ┌─────────────┐    ┌──────────────┐  │    ┌──────────────┐
-│  Producteur  │     │  Exchange   │    │   Queue      │  │    │ Consommateur  │
-│              │────▶│ 'operations'│    │  'results'   │──┴───▶│              │
-│ producer.js  │     │  (direct)   │    │              │       │  consumer.js  │
-└──────────────┘     └──────┬──────┘    └──────────────┘       └──────────────┘
-                            │                    ▲
-                            │                    │
-                            ▼                    │
-                    ┌──────────────┐            │
-                    │   Exchange   │            │
-                    │     Type     │            │
-                    │   'fanout'   │            │
-                    └──────┬───────┘            │
-                           │                    │
-                           │                    │
+│  Producteur  │────▶│  Exchange   │───▶│   Queue      │──┴───▶│ Consommateur  │
+│ producer.js  │     │ 'operations'│    │  'results'   │       │  consumer.js  │
+└──────────────┘     │  (direct)   │    └──────────────┘       └──────────────┘
+        │            └─────────────┘            ▲
+        │                   │                   │
+        │                   ▼                   │
+        │         ┌─────────────────┐          │
+        │         │ Queues Dédiées  │          │
+        │         │  - add_queue    │──────────┤
+        │         │  - sub_queue    │──────────┤
+        │         │  - mul_queue    │──────────┤
+        │         │  - div_queue    │──────────┘
+        │         └─────────────────┘
+        │
+        │            ┌──────────────┐
+        └──────────▶│   Exchange   │
+                    │'all_operations'│
+                    │   (fanout)   │
+                    └──────┬───────┘
+                           │
+                           ▼
          ┌────────────────┬┴─────────────┬─────┴────────┐
          │                │              │              │
          ▼                ▼              ▼              ▼
