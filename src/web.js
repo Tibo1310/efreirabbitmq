@@ -10,8 +10,10 @@ const port = process.env.PORT || 3000;
 let connection = null;
 let channel = null;
 
-// Variable pour stocker le dernier résultat
-let lastResult = null;
+// Variables pour stocker les résultats
+let lastAutoResult = null;  // Pour les calculs automatiques
+let lastUserResult = null;  // Pour les calculs manuels
+let pendingAllResults = new Map(); // Pour stocker les résultats de l'opération "all"
 
 // Fonction pour initialiser la connexion RabbitMQ
 async function connectQueue() {
@@ -19,22 +21,76 @@ async function connectQueue() {
         connection = await amqp.connect(config.rabbitmq.url);
         channel = await connection.createChannel();
         
-        await channel.assertQueue(config.rabbitmq.queues.calculations, {
+        // Configurer l'exchange pour les opérations individuelles
+        await channel.assertExchange('operations', 'direct', {
             durable: false
         });
 
-        await channel.assertQueue(config.rabbitmq.queues.results, {
-            durable: false
-        });
-
+        // Configurer l'exchange pour les opérations 'all'
         await channel.assertExchange(config.rabbitmq.exchanges.all_operations, 'fanout', {
+            durable: false
+        });
+
+        // S'assurer que la queue des résultats existe
+        await channel.assertQueue(config.rabbitmq.queues.results, {
             durable: false
         });
 
         // Écouter les résultats
         channel.consume(config.rabbitmq.queues.results, (msg) => {
             if (msg !== null) {
-                lastResult = JSON.parse(msg.content.toString());
+                const result = JSON.parse(msg.content.toString());
+                
+                // Convertir les grands nombres en BigInt si nécessaire
+                if (typeof result.n1 === 'number' && !Number.isSafeInteger(result.n1)) {
+                    result.n1 = BigInt(result.n1);
+                }
+                if (typeof result.n2 === 'number' && !Number.isSafeInteger(result.n2)) {
+                    result.n2 = BigInt(result.n2);
+                }
+                
+                if (result.isAutomatic) {
+                    lastAutoResult = result;
+                } else {
+                    if (result.originalOp === 'all') {
+                        // Créer une clé unique pour chaque groupe de résultats "all"
+                        const resultKey = `${result.n1}-${result.n2}`;
+                        
+                        if (!pendingAllResults.has(resultKey)) {
+                            pendingAllResults.set(resultKey, {
+                                results: [],
+                                timestamp: Date.now()
+                            });
+                        }
+                        
+                        const pendingResult = pendingAllResults.get(resultKey);
+                        pendingResult.results.push(result);
+                        
+                        // Si nous avons tous les résultats (4 opérations)
+                        if (pendingResult.results.length === 4) {
+                            // Trier les résultats dans l'ordre : add, sub, mul, div
+                            const sortedResults = pendingResult.results.sort((a, b) => {
+                                const order = { 'add': 0, 'sub': 1, 'mul': 2, 'div': 3 };
+                                return order[a.op] - order[b.op];
+                            });
+                            
+                            lastUserResult = {
+                                type: 'all',
+                                results: sortedResults,
+                                n1: result.n1,
+                                n2: result.n2,
+                                timestamp: pendingResult.timestamp
+                            };
+                            
+                            pendingAllResults.delete(resultKey);
+                        }
+                    } else {
+                        lastUserResult = {
+                            ...result,
+                            timestamp: Date.now()
+                        };
+                    }
+                }
                 channel.ack(msg);
             }
         });
@@ -57,7 +113,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Route pour le calcul
+// Route pour le calcul manuel
 app.post('/calculate', async (req, res) => {
     try {
         if (!channel) {
@@ -70,14 +126,15 @@ app.post('/calculate', async (req, res) => {
             throw new Error("Les valeurs entrées doivent être des nombres");
         }
 
-        if (op === 'div' && n2 === 0) {
+        if (op === 'div' && Number(n2) === 0) {
             throw new Error("La division par zéro n'est pas permise");
         }
 
         const message = {
             n1: Number(n1),
             n2: Number(n2),
-            op
+            op,
+            isAutomatic: false
         };
 
         if (op === 'all') {
@@ -87,8 +144,10 @@ app.post('/calculate', async (req, res) => {
                 Buffer.from(JSON.stringify(message))
             );
         } else {
-            channel.sendToQueue(
-                config.rabbitmq.queues.calculations,
+            // Publier dans l'exchange 'operations' avec la clé de routage appropriée
+            channel.publish(
+                'operations',
+                op,
                 Buffer.from(JSON.stringify(message))
             );
         }
@@ -103,11 +162,32 @@ app.post('/calculate', async (req, res) => {
     }
 });
 
-// Route pour récupérer le dernier résultat
-app.get('/last-result', (req, res) => {
-    res.json(lastResult);
-    lastResult = null;
+// Route pour récupérer le dernier résultat automatique
+app.get('/last-auto-result', (req, res) => {
+    res.json(lastAutoResult);
+    lastAutoResult = null;
 });
+
+// Route pour récupérer le dernier résultat manuel
+app.get('/last-user-result', (req, res) => {
+    if (lastUserResult) {
+        const result = lastUserResult;
+        lastUserResult = null;
+        res.json(result);
+    } else {
+        res.json(null);
+    }
+});
+
+// Nettoyage périodique des résultats en attente (toutes les minutes)
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, data] of pendingAllResults.entries()) {
+        if (now - data.timestamp > 60000) { // Supprimer après 1 minute
+            pendingAllResults.delete(key);
+        }
+    }
+}, 60000);
 
 process.on('SIGINT', async () => {
     try {

@@ -45,39 +45,53 @@ function formatOperation(result) {
         'div': '÷',
     };
     const operationSymbol = symbols[result.op] || result.op;
-    return result.n1 + ' ' + operationSymbol + ' ' + result.n2 + ' = ' + result.result;
+    
+    // Formater les grands nombres
+    const n1 = typeof result.n1 === 'string' && result.n1.length > 15 
+        ? BigInt(result.n1).toString()
+        : result.n1;
+    const n2 = typeof result.n2 === 'string' && result.n2.length > 15
+        ? BigInt(result.n2).toString()
+        : result.n2;
+    const resultValue = typeof result.result === 'string' && result.result.length > 15
+        ? BigInt(result.result).toString()
+        : result.result;
+
+    return `${n1} ${operationSymbol} ${n2} = ${resultValue}`;
 }
 
 function addResult(result) {
     const resultsList = document.getElementById('resultsList');
     if (!resultsList) return;
 
+    // N'ajouter à l'historique que les calculs automatiques
+    if (!result.isAutomatic) return;
+
     const resultItem = document.createElement('div');
     resultItem.className = 'result-item';
-    resultItem.textContent = formatOperation(result);
+    
+    if (result.type === 'all') {
+        resultItem.innerHTML = `<strong>Opération ALL:</strong><br>` +
+            result.results.map(r => formatOperation(r)).join('<br>');
+    } else {
+        resultItem.textContent = formatOperation(result);
+    }
+    
     resultsList.insertBefore(resultItem, resultsList.firstChild);
 }
 
 function updateCurrentResult(result) {
     const currentResult = document.getElementById('currentResult');
-    if (currentResult && result) {
-        // Si c'est une opération "all", on affiche tous les résultats
-        if (lastOperation === 'all') {
-            const existingResults = currentResult.getAttribute('data-results') || '[]';
-            const results = JSON.parse(existingResults);
-            results.push(result);
-            
-            if (results.length === 4) { // Tous les résultats sont arrivés
-                currentResult.textContent = results.map(r => formatOperation(r)).join('\n');
-                currentResult.setAttribute('data-results', '[]');
-                lastOperation = null;
-            } else {
-                currentResult.setAttribute('data-results', JSON.stringify(results));
-                currentResult.textContent = 'Calcul en cours... ' + results.length + '/4 opérations terminées';
-            }
-        } else {
-            currentResult.textContent = formatOperation(result);
-        }
+    if (!currentResult) return;
+
+    // N'afficher dans currentResult que les calculs manuels
+    if (result.isAutomatic) return;
+
+    if (result.type === 'all') {
+        currentResult.innerHTML = '<strong>Résultats de l\'opération ALL:</strong><br>' +
+            result.results.map(r => formatOperation(r)).join('<br>');
+    } else {
+        currentResult.textContent = formatOperation(result);
     }
 }
 
@@ -99,57 +113,66 @@ function handleSubmit(event) {
     if (submitBtn) submitBtn.disabled = true;
     if (loading) loading.style.display = 'block';
     if (currentResult) {
-        currentResult.textContent = 'Calcul en cours...';
-        if (op === 'all') {
-            currentResult.setAttribute('data-results', '[]');
-        }
+        currentResult.innerHTML = '<em>En attente du résultat...</em>';
     }
-
-    lastOperation = op;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     fetch('/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ n1, n2, op }),
-        signal: controller.signal
+        signal: AbortSignal.timeout(30000)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             showToast("Calcul envoyé avec succès!");
-            form.reset();
         } else {
             showToast(data.message || "Erreur inconnue", 'error');
+            if (currentResult) {
+                currentResult.innerHTML = '<strong>Erreur:</strong> ' + (data.message || "Erreur inconnue");
+            }
         }
     })
     .catch(error => {
         console.error('Erreur:', error);
         showToast(error.message || "Erreur lors de l'envoi du calcul", 'error');
+        if (currentResult) {
+            currentResult.innerHTML = '<strong>Erreur:</strong> ' + (error.message || "Erreur lors de l'envoi du calcul");
+        }
     })
     .finally(() => {
-        clearTimeout(timeoutId);
         if (submitBtn) submitBtn.disabled = false;
         if (loading) loading.style.display = 'none';
     });
 }
 
-function checkResult() {
-    fetch('/last-result')
+// Vérifier les résultats automatiques
+function checkAutoResult() {
+    fetch('/last-auto-result')
         .then(response => response.json())
         .then(data => {
             if (data) {
-                updateCurrentResult(data);
                 addResult(data);
             }
         })
         .catch(error => console.error('Erreur:', error));
 }
 
-// Vérifier les résultats toutes les 1 secondes
-setInterval(checkResult, 1000);
+// Vérifier les résultats manuels
+function checkUserResult() {
+    fetch('/last-user-result')
+        .then(response => response.json())
+        .then(data => {
+            if (data) {
+                updateCurrentResult(data);
+            }
+        })
+        .catch(error => console.error('Erreur:', error));
+}
+
+// Vérifier les résultats plus fréquemment
+setInterval(checkAutoResult, 1000);
+setInterval(checkUserResult, 500);
 
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
