@@ -1,84 +1,62 @@
 # Système de Calcul Distribué avec RabbitMQ
 
-Un système de calcul distribué qui traite des opérations mathématiques en utilisant les files d'attente RabbitMQ. Ce projet démontre la mise en œuvre d'une architecture de calcul distribuée où plusieurs workers traitent différents types d'opérations mathématiques.
+Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme broker de messages. Il permet d'effectuer des opérations mathématiques de manière distribuée avec simulation de temps de calcul.
 
-## Stack Technologique
+## Technologies Utilisées
 
-- **Langage de Programmation**: Node.js (version 18+ recommandée)
-- **Client RabbitMQ**: amqplib 0.10.3
-- **Dépendances Additionnelles**: 
-  - `dotenv` (pour les variables d'environnement)
-  - `express` (pour l'interface web potentielle)
-  - `nodemon` (pour le développement)
+- **Node.js** : Runtime JavaScript
+- **amqplib** : Librairie AMQP pour Node.js
+- **Express** : Framework web pour l'interface utilisateur
+- **Docker & Docker Compose** : Conteneurisation et orchestration
+- **RabbitMQ** : Message broker
 
-## Structure du Projet
+## Architecture
 
-Le projet se compose de plusieurs éléments :
-1. Client Producteur (envoie les demandes de calcul)
-2. Workers (traitent les calculs)
-3. Client Consommateur (affiche les résultats)
-4. Serveur RabbitMQ (broker de messages)
+Le système est composé de plusieurs composants :
 
-## Instructions d'Installation
+- **RabbitMQ Server** : Broker de messages central
+- **Producteur** : Envoie des requêtes de calcul
+- **Workers** : Effectuent les calculs (4 types : add, sub, mul, div)
+- **Consommateur** : Affiche les résultats
+- **Interface Web** : Interface utilisateur et administration
 
-1. Installer Node.js 18 ou supérieur
-2. Initialiser le projet :
-   ```bash
-   npm init -y
-   ```
+### Queues et Exchanges
 
-3. Installer les dépendances :
-   ```bash
-   npm install amqplib dotenv express nodemon
-   ```
+- `calculations` : Queue principale pour les opérations
+- `results` : Queue pour les résultats
+- `all_operations` : Exchange fanout pour l'opération "all"
 
-4. Installer le Serveur RabbitMQ (choisir une méthode) :
-   - Installation locale : Suivre le [guide d'installation RabbitMQ](https://www.rabbitmq.com/download.html)
-   - Docker : 
-     ```bash
-     docker run -d --hostname my-rabbit --name rabbit-server -p 5672:5672 -p 15672:15672 rabbitmq:3-management
-     ```
+## Installation
 
-## Phases du Projet
+1. Installer Docker et Docker Compose
+2. Cloner le repository
+3. Faire un npm i
+4. Lancer le système :
 
-### Phase 1 : Implémentation de Base
-- Implémenter le producteur de base envoyant des messages JSON avec deux opérandes
-- Créer un worker pour les opérations d'addition
-- Développer le consommateur pour afficher les résultats
+```bash
+docker-compose up --build
+```
 
-### Phase 2 : Opérations Multiples
-- Implémenter quatre types de workers :
-  - Addition (add)
-  - Soustraction (sub)
-  - Multiplication (mul)
-  - Division (div)
-- Modifier le producteur pour sélectionner aléatoirement les types d'opérations
-- Mettre à jour le consommateur pour gérer tous les types d'opérations
+## Utilisation
 
-### Phase 3 : Fonctionnalités Avancées
-- Implémenter le type d'opération "all"
-- Ajouter le paramétrage des workers
-- Augmenter la fréquence des messages
+1. Accéder à l'interface web : http://localhost:3000
+2. L'interface permet de :
+   - Soumettre des calculs manuellement
+   - Voir l'historique des opérations
+   - Monitorer les résultats en temps réel
 
-### Phase 4 : Améliorations (Optionnel)
-- Interface web pour la saisie manuelle des opérations (avec Express.js)
-- Interface d'administration
-- Suivi des résultats par client
-- Configuration Docker Compose
-- Mises à jour en temps réel avec WebSocket
+## Structure des Messages
 
-## Format des Messages
-
-### Format de Requête :
+### Requête de calcul
 ```json
 {
     "n1": 5,
     "n2": 3,
-    "op": "add"  // Peut être : "add", "sub", "mul", "div", "all"
+    "op": "add"  // "add", "sub", "mul", "div", "all"
 }
 ```
 
-### Format de Réponse :
+### Réponse
 ```json
 {
     "n1": 5,
@@ -88,101 +66,48 @@ Le projet se compose de plusieurs éléments :
 }
 ```
 
-## Structure du Projet
-```
-project/
-├── package.json
-├── .env
-├── src/
-│   ├── producer.js
-│   ├── consumer.js
-│   ├── workers/
-│   │   ├── worker.js
-│   │   └── workerUtils.js
-│   └── config/
-│       └── rabbitmq.js
-└── README.md
-```
+## Fonctionnalités
 
-## Exécution du Système
+- ✅ Calculs distribués
+- ✅ 4 types d'opérations : add, sub, mul, div
+- ✅ Opération "all" avec fanout exchange
+- ✅ Simulation de calculs complexes (5-15 secondes)
+- ✅ Interface web moderne
+- ✅ Interface d'administration
+- ✅ Containerisation complète
+- ✅ Hot-reload en développement
 
-1. Démarrer le serveur RabbitMQ
+## Architecture Docker
 
-2. Lancer les workers (un ou plusieurs de chaque type) :
-   ```bash
-   node src/workers/worker.js add
-   node src/workers/worker.js sub
-   node src/workers/worker.js mul
-   node src/workers/worker.js div
-   ```
+- **rabbitmq** : Service RabbitMQ avec interface de gestion
+- **producer** : Service producteur
+- **consumer** : Service consommateur
+- **web** : Interface web
+- **worker-add** : Worker pour l'addition
+- **worker-sub** : Worker pour la soustraction
+- **worker-mul** : Worker pour la multiplication
+- **worker-div** : Worker pour la division
 
-3. Démarrer le consommateur :
-   ```bash
-   node src/consumer.js
-   ```
+## Développement
 
-4. Démarrer le producteur :
-   ```bash
-   node src/producer.js
-   ```
-
-Pour le développement avec rechargement automatique :
+Pour lancer en mode développement :
 ```bash
-nodemon src/producer.js
-nodemon src/consumer.js
-nodemon src/workers/worker.js add
+npm install
+docker-compose up --build
 ```
 
-## Directives de Développement
+Les volumes sont configurés pour le hot-reload en développement.
 
-1. Utiliser les fonctionnalités ES6+
-2. Implémenter une gestion appropriée des erreurs
-3. Utiliser async/await pour les opérations RabbitMQ
-4. Suivre les conventions de style JavaScript standard
-5. Ajouter des commentaires JSDoc pour la documentation
-6. Utiliser des variables d'environnement pour la configuration
+## Monitoring
 
-Exemple de fichier .env :
-```
-RABBITMQ_URL=amqp://localhost
-QUEUE_NAME=calculations
-RESULT_QUEUE=results
-```
+- Interface RabbitMQ : http://localhost:15672
+  - Login : guest
+  - Password : guest
+- Interface Web : http://localhost:3000
 
-## Contribution au Projet
+## Sécurité
 
-Pour contribuer à ce projet :
-
-1. Créer une nouvelle branche :
-   ```bash
-   git branch NOM_DE_BRANCHE
-   ```
-
-2. Faire vos modifications et les commiter
-
-3. Pour fusionner votre branche dans main :
-   ```bash
-   git checkout main
-   git merge NOM_DE_BRANCHE
-   ```
-
-4. Pour mettre à jour votre branche avec main :
-   ```bash
-   git checkout NOM_DE_BRANCHE
-   git merge main
-   ```
-
-5. Mettre à jour votre dépôt local :
-   ```bash
-   git pull
-   ```
-
-6. Pousser vos modifications :
-   ```bash
-   git push
-   ```
-
-## Équipe du Projet
-- Thibault Delattre
-- Florent Lelion
-- Florian Germain
+- Validation des entrées
+- Gestion des erreurs (division par zéro)
+- Variables d'environnement pour la configuration
+- Healthchecks Docker
