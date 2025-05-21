@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur Distribué</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Calculateur Distribué</h1>
+        <form id="calcForm">
+            <div class="form-group">
+                <label>Premier nombre:</label>
+                <input type="number" name="n1" required step="any">
+                <div class="error" id="n1Error"></div>
+            </div>
+            <div class="form-group">
+                <label>Second nombre:</label>
+                <input type="number" name="n2" required step="any">
+                <div class="error" id="n2Error"></div>
+            </div>
+            <div class="form-group">
+                <label>Opération:</label>
+                <select name="op" required>
+                    <option value="add">Addition (+)</option>
+                    <option value="sub">Soustraction (-)</option>
+                    <option value="mul">Multiplication (×)</option>
+                    <option value="div">Division (÷)</option>
+                    <option value="all">Toutes les opérations</option>
+                </select>
+            </div>
+            <button type="submit" id="submitBtn">Calculer</button>
+            <div class="loading" id="loading"></div>
+        </form>
+        
+        <div class="current-result">
+            <h2>Résultat en cours</h2>
+            <div id="currentResult"></div>
+        </div>
+
+        <div class="results">
+            <h2>Historique des calculs:</h2>
+            <div id="resultsList"></div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script src="/js/app.js"></script>
+</body>
+</html> 
