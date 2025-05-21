@@ -12,9 +12,9 @@ Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme 
                                                             │    └──────────────┘
                                                             │
 ┌──────────────┐     ┌─────────────┐    ┌──────────────┐  │    ┌──────────────┐
-│  Producteur  │     │   Queue     │    │   Queue      │  │    │ Consommateur  │
-│              │────▶│'calculations'│    │  'results'   │──┴───▶│              │
-│ producer.js  │     │             │    │              │       │  consumer.js  │
+│  Producteur  │     │  Exchange   │    │   Queue      │  │    │ Consommateur  │
+│              │────▶│ 'operations'│    │  'results'   │──┴───▶│              │
+│ producer.js  │     │  (direct)   │    │              │       │  consumer.js  │
 └──────────────┘     └──────┬──────┘    └──────────────┘       └──────────────┘
                             │                    ▲
                             │                    │
@@ -22,7 +22,7 @@ Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme 
                     ┌──────────────┐            │
                     │   Exchange   │            │
                     │     Type     │            │
-                    │   'direct'   │            │
+                    │   'fanout'   │            │
                     └──────┬───────┘            │
                            │                    │
                            │                    │
@@ -33,16 +33,7 @@ Ce projet implémente un système de calcul distribué utilisant RabbitMQ comme 
 │   Worker     │  │    Worker    ││    Worker    ││    Worker    │
 │     ADD      │  │     SUB     ││     MUL      ││     DIV      │
 │  worker.js   │  │   worker.js  ││   worker.js  ││   worker.js  │
-└──────┬───────┘  └──────┬───────┘└──────┬───────┘└──────┬───────┘
-       │                 │               │              │
-       │                 │               │              │
-       └─────────┬───────┴───────┬───────┴──────┬──────┘
-                 │               │              │
-                 ▼               ▼              ▼
-         ┌─────────────────────────────────────────────┐
-         │           Exchange 'all_operations'          │
-         │               Type: 'fanout'                │
-         └─────────────────────────────────────────────┘
+└──────────────┘  └──────────────┘└──────────────┘└──────────────┘
 
 Légende:
 --------
@@ -55,34 +46,44 @@ Configuration:
 - Interface Web : http://localhost:3000
 - Connexion RabbitMQ : amqp://guest:guest@rabbitmq:5672
 
+Exchanges:
+---------
+1. operations (direct) : Pour les opérations individuelles
+   - Routing keys : 'add', 'sub', 'mul', 'div'
+   - Chaque worker est lié à sa propre queue avec sa clé de routage
+
+2. all_operations (fanout) : Pour l'opération "all"
+   - Pas de routing key (broadcast à tous les workers)
+   - Chaque worker crée une queue exclusive temporaire
+
 Queues:
 -------
 1. Queues permanentes :
-   - calculations : Queue principale pour les opérations
-   - results : Queue pour les résultats
+   - add_queue : Queue dédiée aux additions
+   - sub_queue : Queue dédiée aux soustractions
+   - mul_queue : Queue dédiée aux multiplications
+   - div_queue : Queue dédiée aux divisions
+   - results : Queue pour tous les résultats
 
-2. Queues temporaires (auto-générées) :
-   - Une queue exclusive par worker (préfixe amq.gen-*)
-   - Créées automatiquement pour l'exchange fanout
+2. Queues temporaires :
+   - Créées automatiquement pour l'exchange fanout (all_operations)
+   - Une par worker pour les opérations "all"
    - Supprimées à la déconnexion des workers
-
-Exchanges:
----------
-1. Direct (default) : Pour les opérations individuelles
-2. all_operations (fanout) : Pour l'opération "all"
 
 Bindings:
 --------
-- Workers → calculations (routing key = operation type)
-- Workers → all_operations (pas de routing key - fanout)
-- Workers → results (pour les réponses)
+- operations (exchange) → add_queue (routing_key: 'add')
+- operations (exchange) → sub_queue (routing_key: 'sub')
+- operations (exchange) → mul_queue (routing_key: 'mul')
+- operations (exchange) → div_queue (routing_key: 'div')
+- all_operations (exchange) → queues temporaires (fanout)
 
 Workers:
 -------
-- worker-add : Additions
-- worker-sub : Soustractions
-- worker-mul : Multiplications
-- worker-div : Divisions
+- worker-add : Additions (écoute add_queue + all_operations)
+- worker-sub : Soustractions (écoute sub_queue + all_operations)
+- worker-mul : Multiplications (écoute mul_queue + all_operations)
+- worker-div : Divisions (écoute div_queue + all_operations)
 
 Messages:
 --------
